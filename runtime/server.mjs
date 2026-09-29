@@ -4,6 +4,7 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {networkInterfaces} from 'node:os';
 import {synthesize,speechConfigStatus} from './speech.mjs';
+import {synthesizeA2f,a2fConfigStatus} from './a2f.mjs';
 import {createFamilyAccess} from './family-access.mjs';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const publicDir=path.join(root,'public');
@@ -26,7 +27,7 @@ const server=http.createServer(async(req,res)=>{
   res.setHeader('Vary','Origin');
   if(req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('Access-Control-Allow-Methods','GET,POST');res.writeHead(204);res.end();return;}
   const url=new URL(req.url,'http://localhost');
-  if(url.pathname==='/api/status'){const authorized=family.authorized(req);json(res,200,authorized?{...speechConfigStatus(),familyMode:family.enabled,pairingRequired:false}:{application:'mouth-teacher',version:2,configured:false,familyMode:true,pairingRequired:true});return;}
+  if(url.pathname==='/api/status'){const authorized=family.authorized(req);json(res,200,authorized?{...speechConfigStatus(),a2f:a2fConfigStatus(),familyMode:family.enabled,pairingRequired:false}:{application:'mouth-teacher',version:2,configured:false,familyMode:true,pairingRequired:true});return;}
   if(url.pathname==='/api/pair'&&req.method==='POST'&&family.enabled){
    let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>256){json(res,413,{error:'连接码格式错误'});return;}}
    let data;try{data=JSON.parse(raw);}catch{json(res,400,{error:'连接码格式错误'});return;}
@@ -39,9 +40,9 @@ const server=http.createServer(async(req,res)=>{
    let raw=''; for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>12000){json(res,413,{error:'输入过长'});return;}}
    let body;try{body=JSON.parse(raw);}catch{json(res,400,{error:'请求格式错误'});return;}
    if(typeof body.text!=='string' || !body.text.trim() || body.text.length>1000){json(res,400,{error:'请输入 1–1000 字'});return;}
-   if(body.provider && body.provider!=='azure'){json(res,400,{error:'当前仅支持 Azure Speech'});return;}
+   if(body.provider && !['azure','a2f3d'].includes(body.provider)){json(res,400,{error:'语音服务无效'});return;}
    const abort=new AbortController();res.on('close',()=>{if(!res.writableEnded)abort.abort();});
-   active++;try{const result=await synthesize(body.text.trim(),abort.signal,{articulation:body.articulation===true,voiceProfile:body.voiceProfile,readings:body.readings,pace:body.pace});if(!res.destroyed)json(res,200,result);}finally{active--;}
+   active++;try{const result=body.provider==='azure'?await synthesize(body.text.trim(),abort.signal,{articulation:body.articulation===true,voiceProfile:body.voiceProfile,readings:body.readings,pace:body.pace}):await synthesizeA2f(body.text.trim(),abort.signal,{pace:body.pace});if(!res.destroyed)json(res,200,result);}finally{active--;}
    return;
   }
   if(req.method!=='GET'){json(res,405,{error:'Method not allowed'});return;}

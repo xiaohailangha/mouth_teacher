@@ -21,9 +21,7 @@ export function sampleA2fTongue(frames, seconds) {
   return controls;
 }
 
-export function a2fFixturePacket(entry, face) {
-  if (!entry || !/^\d{2}\.wav$/.test(entry.audio) || typeof entry.text !== 'string')
-    throw Error('Audio2Face 音频清单无效');
+export function a2fFaceFrames(face) {
   if (![1, 2].includes(face?.schema) || face.source !== 'nvidia-audio2face-3d-v3.0' || face.fps !== 60 ||
       !Array.isArray(face.channels) || !face.channels.length || !Array.isArray(face.frames) || !face.frames.length)
     throw Error('Audio2Face 面部数据无效');
@@ -56,7 +54,13 @@ export function a2fFixturePacket(entry, face) {
     });
     return {time: frameIndex / 60, values, tongue};
   });
+  return frames;
+}
+
+export function a2fFixturePacket(entry, face) {
+  if (!entry || !/^\d{2}\.wav$/.test(entry.audio) || typeof entry.text !== 'string')
+    throw Error('Audio2Face 音频清单无效');
   return {schema: 1, source: 'a2f3d', voice: entry.voice, audioSource: 'xfyun', faceSource: face.source,
     audioUrl: `/fixtures/a2f/${entry.audio}`, mime: 'audio/wav', text: entry.text,
-    frames, visemes: [], words: [], syllables: []};
+    frames: a2fFaceFrames(face), visemes: [], words: [], syllables: []};
 }

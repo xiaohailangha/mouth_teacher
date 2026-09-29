@@ -51,24 +51,27 @@ const audio=new Audio();audio.preload='auto';
 function requirePairing(){if(!$('pair-dialog').open)$('pair-dialog').showModal();$('status').textContent='请家长先连接家庭服务。';}
 function showServiceStatus(status){
  if(status.pairingRequired){requirePairing();return;}
- $('status').textContent=status.configured?'小虎子准备好了，试着说一句吧。':'语音尚未配置，请家长先完成本机设置。';
- $('speech-config').textContent=status.configured?`${status.voice}${status.role?' / '+status.role:''}${status.style?' / '+status.style:''} · ${status.region} · ${status.verified?'本次服务已实测':'尚未实测'}`:'密钥仅保存在 Windows 服务端；请运行本机配置脚本。';
+ $('status').textContent=status.a2f?.configured?'讯飞与 A2F 连接已配置；新句子需 GPU 在线。':'10 句离线 A2F 样例可用；任意新句子需连接 GPU 服务。';
+ $('speech-config').textContent=status.a2f?.configured?`${status.a2f.voice} · 讯飞声音 + A2F 在线推断`:'当前可选已导出的 10 句讯飞 + A2F 样例。';
 }
 $('pair-form').onsubmit=async event=>{
  event.preventDefault();const button=$('pair-form').querySelector('button');button.disabled=true;$('pair-error').textContent='正在连接…';
  try{const response=await fetch('/api/pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:$('pair-code').value})});const data=await response.json();if(!response.ok)throw Error(data.error);$('pair-code').value='';$('pair-dialog').close();showServiceStatus(await fetch('/api/status').then(r=>r.json()));}
  catch(e){$('pair-error').textContent=e.message||'连接失败，请重试。';}finally{button.disabled=false;}
 };
-// Pace is synthesized by Azure; audio always plays at its original speed.
+// Pace is synthesized by XFYun; audio always plays at its original speed.
 try{const saved=localStorage.getItem('teacher-pace-v1');if(['gentle','extraSlow','easy','normal'].includes(saved))$('speed').value=saved;}catch{}
 audio.defaultPlaybackRate=audio.playbackRate=1;audio.preservesPitch=true;
 $('speed').onchange=()=>{player.setPlaybackRate(1);try{localStorage.setItem('teacher-pace-v1',$('speed').value);}catch{}$('status').textContent='下次朗读按新节奏生成；重播保留原音频。';};
- let replayPacket=null;
+let replayPacket=null,a2fEntries=[],fixtureReady;
 const mappedSpeech=(row,time)=>player.source==='a2f3d'?{...controlsFromFrame(row),...sampleA2fTongue(player.frames,time)}:player.source==='authored-reference'?controlsFromFrame(row):assetVersion===6?speechFace(row,player.visemes,time,$('mouth-mode').value,Number($('mouth-gain').value)):retargetControls(row,player.visemes,time);
 const player=new SpeechPlayer({audio,fetchSpeech:async(text,signal,options)=>{
- const response=await fetch('/api/speech',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,articulation:options?.articulation===true,voiceProfile:$('voice-profile').value,readings:options?.readings,pace:$('speed').value}),signal});
+ await fixtureReady;
+ const entry=a2fEntries.find(item=>item.text===text);
+ if(entry){const result=await fetch(`/fixtures/a2f/${entry.face}`,{signal});if(!result.ok)throw Error('A2F 样例读取失败');const packet=a2fFixturePacket(entry,await result.json());replayPacket=packet;$('replay').disabled=false;return packet;}
+ const response=await fetch('/api/speech',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,provider:'a2f3d',pace:$('speed').value}),signal});
  const data=await response.json();if(data.pairingRequired)requirePairing();if(!response.ok)throw Error(data.error || '合成失败');
- if(!signal.aborted)$('speech-config').textContent=`${data.voice}${data.role?' / '+data.role:''}${data.style?' / '+data.style:''} · ${data.region} · 本次合成已验证`;
+ if(!signal.aborted)$('speech-config').textContent=`${data.voice} · 讯飞声音 + A2F 面部与舌头 · 本次已生成`;
  if(signal.aborted)throw Error('已停止');
   replayPacket=data;$('replay').disabled=false;return data;
 },onState:(state,message)=>{
@@ -78,38 +81,32 @@ const player=new SpeechPlayer({audio,fetchSpeech:async(text,signal,options)=>{
  if(state==='paused')oralPaused={...lastControls};else oralPaused=null;
  if(oralView?.active)$('oral-hold').textContent=state==='paused'?'继续配音':'定格观察';
  $('status').textContent=message; $('speak').disabled=!ready;
- if(state==='playing' && player.source==='azure')$('speech-config').textContent=$('speech-config').textContent.replace('尚未实测','本次合成已验证');
  $('stop').disabled=state==='idle';$('pause').disabled=state!=='playing';$('resume').disabled=!['paused','ready'].includes(state);
- if(state==='idle'){$('progress').value=0;if(oralView?.active)$('oral-description').textContent=demos[tongueDemo].description;}
+ if(state==='idle'){$('progress').value=0;if(oralView?.active)$('oral-description').textContent='播放句子后可在这里看到 A2F 舌部通道数值；舌位未经过逐字教学标定。';}
 }});
 async function setupA2fFixtures(){
  try {
   const response=await fetch('/fixtures/a2f/manifest.json');if(!response.ok)return;
   const manifest=await response.json();const entries=manifest.entries?.filter(entry=>entry.faceSource==='nvidia-audio2face-3d-v3.0'&&/^\d{2}-(?:face|full)\.json$/.test(entry.face));
   if(!entries?.length)return;
+  a2fEntries=entries;
   const select=$('a2f-fixture-select');
   for(const entry of entries){const option=document.createElement('option');option.value=entry.id;option.textContent=`${entry.id} · ${entry.text}`;select.append(option);}
   $('a2f-fixtures').hidden=false;
   $('a2f-fixture-play').onclick=async()=>{
    const entry=entries.find(item=>item.id===select.value);if(!entry)return;
-   resetManual();player.stop('');const generation=player.generation;player.abort=new AbortController();player.setState('synthesizing','正在读取离线面部帧…');
-   try {
-    const result=await fetch(`/fixtures/a2f/${entry.face}`,{signal:player.abort.signal});if(!result.ok)throw Error('面部数据读取失败');
-    const packet=a2fFixturePacket(entry,await result.json());if(generation!==player.generation)return;
-    $('text').value=entry.text;replayPacket=packet;$('replay').disabled=false;
-    mouthView=true;frameCamera();mouthButton();await player.load(packet,generation);
-   }catch(error){if(generation===player.generation)player.stop(error.message||'离线样例读取失败');}
+   resetManual();$('text').value=entry.text;mouthView=true;frameCamera();mouthButton();await player.speak(entry.text);
   };
  }catch(error){console.warn('Audio2Face fixture manifest unavailable:',error.message);}
 }
-setupA2fFixtures();
+fixtureReady=setupA2fFixtures();
 function resetManual(){manual={};lessonSpeech=false;demoEnabled=false;document.querySelectorAll('#sliders input').forEach(e=>e.value=0);}
 function setOral(active){
- if(!oralView)return;oralView.setActive(active);oralView.setSection(oralSide);$('oral-side').textContent=oralSide?'正面观察':'侧面剖视';demoEnabled=active&&player.state==='idle';holdDemo=false;demoStarted=performance.now()/1000;
+ if(!oralView)return;oralView.setActive(active);oralView.setSection(oralSide);$('oral-side').textContent=oralSide?'正面观察':'侧面剖视';demoEnabled=false;holdDemo=false;demoStarted=performance.now()/1000;
  document.body.classList.toggle('oral-mode',active);$('oral-tools').hidden=!active;$('oral-legend').hidden=!active;
  document.querySelector('.observation-note').hidden=!active;$('oral-toggle').setAttribute('aria-pressed',String(active));$('oral-toggle').textContent=active?'返回小虎子':'看口腔内部';
- $('oral-description').textContent=demos[tongueDemo].description;
- document.querySelector('.panel h2').textContent=active?'看看舌头怎样动':'今天想说些什么？';document.querySelector('.description').textContent=active?'选一个部位，或输入新句子逐字观察。':'写一句新话，让小虎子说给你听。';
+ $('oral-description').textContent='播放句子后可在这里看到 A2F 舌部通道数值；舌位未经过逐字教学标定。';
+ document.querySelector('.panel h2').textContent=active?'看看舌头怎样动':'今天想说些什么？';document.querySelector('.description').textContent=active?'播放已导出的句子，或连接 GPU 后输入新句子观察 A2F 动作。':'写一句新话，让小虎子说给你听。';
  document.querySelector('.heading h1').textContent=active?'走进口腔看一看':'慢慢说，开心学';document.querySelector('.heading p').textContent=active?'原模型舌体 · 牙齿与内壁 · 侧面剖视':'看嘴型 · 听声音 · 跟着说';frameCamera();
 }
 $('oral-toggle').onclick=()=>setOral(!oralView?.active);
@@ -123,7 +120,7 @@ $('greet').onclick=()=>{
  gestureStart=performance.now()/1000;
 };
 $('speak').onclick=()=>{resetManual();const text=$('text').value.trim();if(!text){$('status').textContent='先写一句话吧。';return;}player.speak(text);};
-$('observe').onclick=()=>{const text=$('text').value.trim();if(!text){$('status').textContent='先写一句话吧。';return;}setOral(true);resetManual();player.speak(text,{articulation:true,readings:readings.value.trim()});};
+$('observe').onclick=()=>{const text=$('text').value.trim();if(!text){$('status').textContent='先写一句话吧。';return;}setOral(true);resetManual();player.speak(text);};
 $('stop').onclick=()=>{resetManual();demoEnabled=false;holdDemo=false;$('oral-hold').textContent='定格观察';player.stop();};$('pause').onclick=()=>player.pause();$('resume').onclick=()=>player.resume();
 $('progress').oninput=()=>{
  if(!player.seek(Number($('progress').value)*audio.duration))return;
@@ -168,8 +165,7 @@ $('reference-original').onclick=()=>playSentenceReference(false);
 $('mouth-gain').oninput=()=>{$('mouth-gain-value').textContent=Number($('mouth-gain').value).toFixed(2)+' 倍';};
 $('mouth-mode').onchange=()=>{$('mouth-gain').disabled=$('mouth-mode').value!=='clear';};
 $('reset').onclick=()=>{resetManual();player.stop();};
-document.querySelectorAll('[data-text]').forEach(el=>el.onclick=()=>{$('text').value=el.dataset.text;$('readings').value='';});
-$('text').addEventListener('input',()=>{$('readings').value='';});
+document.querySelectorAll('[data-text]').forEach(el=>el.onclick=()=>{$('text').value=el.dataset.text;});
 for(const [name,label] of [['jawOpen','张口'],...(assetVersion===6?[['mouthClose','联动闭口']]:[]),['mouthPucker','圆唇（形态键）'],['mouthSmileLeft','左嘴角'],['eyeBlinkLeft','左眼闭合'],['eyeBlinkRight','右眼闭合'],['tongueTipUp','舌尖抬起'],...(assetVersion>=5?[['tongueExtend','伸舌'],['tongueRetract','收舌'],['tongueLeft','舌头向左'],['tongueRight','舌头向右'],['tongueMiddleRaise','舌中抬起'],['tongueRootRaise','舌根段抬起'],['tongueTipCurl','舌尖弯曲']]:[])]){
  const labelEl=document.createElement('label');labelEl.textContent=label;const slider=document.createElement('input');slider.type='range';slider.min=0;slider.max=1;slider.step=.01;slider.value=0;slider.dataset.channel=name;
    slider.oninput=()=>{demoEnabled=false;lessonSpeech=false;holdDemo=false;if(player.state!=='idle')player.stop('基础变形检查');manual[name]=Number(slider.value);};labelEl.append(slider);$('sliders').append(labelEl);
@@ -217,6 +213,10 @@ function render(ms){
   const phoneticText=unit?(unit.displayPinyin||unit.pinyin.replaceAll('v','ü')+(unit.tone===5?'':unit.tone)):'';
   $('spoken-unit').textContent=unit?`${unit.text} · ${phoneticText}${oralView?.active&&!articulation.supported?' · 舌位待细分':''}`:currentWord?.text||'';
   if(oralView?.active&&player.syllables.length&&['playing','paused'].includes(player.state))$('oral-description').textContent=unit?`${unit.text}（${phoneticText}）：${articulation.description}`:'字间停顿，舌头回到过渡位置。';
+  if(oralView?.active&&player.source==='a2f3d'&&['playing','paused'].includes(player.state)){
+   const tongue=sampleA2fTongue(player.frames,audio.currentTime);
+   $('oral-description').textContent=`A2F 舌体上抬 ${Number(tongue.tongueMiddleRaise||0).toFixed(2)} · 内收 ${Number(tongue.tongueRetract||0).toFixed(2)} · 舌尖上抬 ${Number(tongue.tongueTipRaisePreview||0).toFixed(2)}。音频推断结果，非逐字教学舌位。`;
+  }
   if(oralView?.active){
 
    if(!oralPaused&&demoEnabled&&!speaking&&!['paused','synthesizing','ready'].includes(player.state)){const demo=demos[tongueDemo],weight=holdDemo?heldWeight:(1-Math.cos((t-demoStarted)*Math.PI/2))*.5;v.jawOpen=demo.jaw;v[demo.channel]=weight*(demo.gain||1);for(const [name,gain] of Object.entries(demo.extra||{}))v[name]=weight*gain;$('stop').disabled=false;}
