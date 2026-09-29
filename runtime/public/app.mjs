@@ -11,6 +11,7 @@ import {controlsFromFrame,CHANNELS,sampleFrames} from './timeline.mjs';
 import {SpeechPlayer} from './player.mjs';
 import {a2fFixturePacket,sampleA2fTongue} from './a2f-fixture.mjs';
 import {visibleA2fTongue} from './a2f-tongue-visual.mjs';
+import {addA2fR31TongueShapes} from './a2f-r31-tongue.mjs';
 import {retargetControls,visemeWeights} from './retarget.mjs';
 import {OralView,constrainTongueShader} from './oral-view.mjs';
 import {sampleArticulation} from './articulation.mjs';
@@ -216,7 +217,7 @@ function render(ms){
   if(oralView?.active&&player.syllables.length&&['playing','paused'].includes(player.state))$('oral-description').textContent=unit?`${unit.text}（${phoneticText}）：${articulation.description}`:'字间停顿，舌头回到过渡位置。';
   if(oralView?.active&&player.source==='a2f3d'&&['playing','paused'].includes(player.state)){
    const tongue=sampleA2fTongue(player.frames,audio.currentTime);
-   $('oral-description').textContent=`A2F 原始值：舌体上抬 ${Number(tongue.tongueMiddleRaise||0).toFixed(2)} · 内收 ${Number(tongue.tongueRetract||0).toFixed(2)} · 舌尖上抬 ${Number(tongue.tongueTipRaisePreview||0).toFixed(2)}。${$('a2f-tongue-enhance').checked?'画面已增强舌体动作；':'画面使用原始权重；'}非逐字教学舌位。`;
+   $('oral-description').textContent=`A2F 原始值：舌体上抬 ${Number(tongue.tongueMiddleRaise||0).toFixed(2)} · 下压 ${Number(tongue.tongueDown||0).toFixed(2)} · 内收 ${Number(tongue.tongueRetract||0).toFixed(2)} · 舌尖上抬 ${Number(tongue.tongueTipRaisePreview||0).toFixed(2)} · 舌尖下卷 ${Number(tongue.tongueRollDown||0).toFixed(2)}。${$('a2f-tongue-enhance').checked?'画面已增强舌体动作；':'画面使用原始权重；'}新增舌部形变是实验映射，非逐字教学舌位。`;
   }
   if(oralView?.active){
 
@@ -229,15 +230,19 @@ function render(ms){
    else if(player.state==='paused'){presentWeight=oralPaused?.gesturePresent||0;v.headSpeechNod=oralPaused?.headSpeechNod||0;}
    else presentWeight*=Math.exp(-dtFrame*5);
    v.gesturePresent=presentWeight;
-   const expression=$('expression').value,happy=expression==='happy',curious=expression==='curious';
-   v.browInnerUp=Math.max(v.browInnerUp||0,(curious?.3:.07)+v.gestureWave*.12);
-   if(happy){v.eyeSquintLeft=.18;v.eyeSquintRight=.18;v.browOuterUpLeft=.2;v.browOuterUpRight=.2;}
-   if(curious){v.eyeWideLeft=.15;v.eyeWideRight=.1;v.browOuterUpLeft=.25;}
-   if(!speaking&&player.state!=='paused'){v.mouthSmileLeft=(happy?.45:.10)+v.gestureWave*.2;v.mouthSmileRight=(happy?.45:.10)+v.gestureWave*.2;}
+   if(player.source!=='a2f3d'||!['playing','paused','ready'].includes(player.state)){
+    const expression=$('expression').value,happy=expression==='happy',curious=expression==='curious';
+    v.browInnerUp=Math.max(v.browInnerUp||0,(curious?.3:.07)+v.gestureWave*.12);
+    if(happy){v.eyeSquintLeft=.18;v.eyeSquintRight=.18;v.browOuterUpLeft=.2;v.browOuterUpRight=.2;}
+    if(curious){v.eyeWideLeft=.15;v.eyeWideRight=.1;v.browOuterUpLeft=.25;}
+    if(!speaking&&player.state!=='paused'){v.mouthSmileLeft=(happy?.45:.10)+v.gestureWave*.2;v.mouthSmileRight=(happy?.45:.10)+v.gestureWave*.2;}
+   }
   }
   if(t>nextBlink){blinkStart=t;nextBlink=t+3+Math.random()*3;}
   const dt=t-blinkStart;const blink=dt>=0&&dt<.2?Math.sin(dt/.2*Math.PI):0;
-  v.eyeBlinkLeft=Math.max(v.eyeBlinkLeft,blink);v.eyeBlinkRight=Math.max(v.eyeBlinkRight,blink);
+  if(player.source!=='a2f3d'||!['playing','paused','ready'].includes(player.state)){
+   v.eyeBlinkLeft=Math.max(v.eyeBlinkLeft,blink);v.eyeBlinkRight=Math.max(v.eyeBlinkRight,blink);
+  }
   Object.assign(v,manual);applyControls(v,t);
   $('progress').value=Number.isFinite(audio.duration)&&audio.duration>0?audio.currentTime/audio.duration:0;
   $('progress').disabled=!['playing','paused','ready'].includes(player.state)||!Number.isFinite(audio.duration)||audio.duration<=0;
@@ -264,6 +269,7 @@ try{
    old.removeFromParent();model.add(mesh);model.updateMatrixWorld(true);if(head)head.attach(mesh);
   }
  }
+ if(assetVersion===6)addA2fR31TongueShapes(model.getObjectByName('Teacher_舌头'));
  model.traverse(o=>{if(o.isBone)bones[o.name]=o;if(o.morphTargetDictionary)morphs.push(o);if(o.isMesh)o.frustumCulled=false;});
  const eyeMaterials=new Map();
  if(assetVersion>=2)model.traverse(o=>{if(o.isMesh){

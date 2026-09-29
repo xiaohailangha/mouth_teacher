@@ -24,6 +24,8 @@ test('ten XFYun recordings have real Audio2Face frames aligned to their audio', 
     assert.equal(face.schema, 2);
     assert.equal(face.channels.length, 52);
     assert.equal(face.tongueChannels.length, 16);
+    assert.equal(Object.keys(packet.frames[0].tongue).length, 16);
+    assert.deepEqual(Object.keys(packet.frames[0].rawTongue), face.tongueChannels);
     assert.ok(Math.abs(packet.frames.at(-1).time - entry.duration) < 0.05, entry.id);
     assert.ok(packet.frames.some(frame => frame.values[17] > 0.05), `${entry.id}: jaw never moved`);
     assert.ok(packet.frames.some(frame => frame.tongue.tongueMiddleRaise > .1), `${entry.id}: tongue never moved`);

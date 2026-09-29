@@ -30,9 +30,9 @@ test('Audio2Face tongue solve drives independent tiger controls on the audio clo
     'tongueRollDown','tongueRollLeft','tongueRollRight','tongueUp','tongueDown','tongueLeft',
     'tongueRight','tongueIn','tongueStretch','tongueWide','tongueNarrow'];
   const v = (tip, rear) => tongueChannels.map(name => name === 'tongueTipUp' ? tip : name === 'tongueStretch' ? rear : 0);
-  const full = {...face, schema: 2, tongueChannels, frames: [
-    {...face.frames[0], tongueValues: v(0, 0)},
-    {...face.frames[1], tongueValues: v(.8, .6)},
+  const full = {...face, schema: 2, channels: CHANNELS.slice(0, 52), tongueChannels, frames: [
+    {time: 0, values: CHANNELS.slice(0, 52).map(() => 0), tongueValues: v(0, 0)},
+    {time: 1 / 60, values: CHANNELS.slice(0, 52).map(() => 0), tongueValues: v(.8, .6)},
   ]};
   const packet = a2fFixturePacket(entry, full);
   const half = sampleA2fTongue(packet.frames, 1 / 120);

@@ -4,10 +4,13 @@ const canonical = value => String(value).replace(/[^a-z0-9]/gi, '').toLowerCase(
 const channelIndex = new Map(CHANNELS.map((name, index) => [canonical(name), index]));
 const tongueTargets = {
   tongueTipUp: ['tongueTipRaisePreview'], tongueTipDown: ['tongueTipLowerPreview'],
-  tongueTipLeft: ['tongueLeft'], tongueTipRight: ['tongueRight'],
-  tongueRollUp: ['tongueTipCurl'], tongueUp: ['tongueMiddleRaise'],
+  tongueTipLeft: ['tongueTipLeft'], tongueTipRight: ['tongueTipRight'],
+  tongueRollUp: ['tongueTipCurl'], tongueRollDown: ['tongueRollDown'],
+  tongueRollLeft: ['tongueRollLeft'], tongueRollRight: ['tongueRollRight'],
+  tongueUp: ['tongueMiddleRaise'], tongueDown: ['tongueDown'],
   tongueLeft: ['tongueLeft'], tongueRight: ['tongueRight'],
   tongueIn: ['tongueRetract'], tongueStretch: ['tongueExtend'],
+  tongueWide: ['tongueWide'], tongueNarrow: ['tongueNarrow'],
 };
 
 export function sampleA2fTongue(frames, seconds) {
@@ -32,10 +35,12 @@ export function a2fFaceFrames(face) {
     throw Error('Audio2Face 通道与小虎子模型不匹配');
   if (matched.size !== indexes.filter(index => index !== undefined).length)
     throw Error('Audio2Face 通道重复');
+  if (face.schema === 2 && matched.size !== 52)
+    throw Error('Audio2Face 面部 52 路通道不完整');
   const tongueChannels = face.schema === 2 ? face.tongueChannels : [];
-  if (face.schema === 2 && (!Array.isArray(tongueChannels) || tongueChannels.length < 10 ||
+  if (face.schema === 2 && (!Array.isArray(tongueChannels) || tongueChannels.length !== 16 ||
       new Set(tongueChannels).size !== tongueChannels.length ||
-      tongueChannels.some(name => !/^[A-Za-z][A-Za-z0-9]*$/.test(name))))
+      tongueChannels.some(name => !(name in tongueTargets))))
     throw Error('Audio2Face 舌头通道无效');
   const frames = face.frames.map((frame, frameIndex) => {
     if (!Array.isArray(frame.values) || frame.values.length !== indexes.length ||
@@ -47,12 +52,13 @@ export function a2fFaceFrames(face) {
       throw Error('Audio2Face 帧数据或时间戳无效');
     const values = Array(55).fill(0);
     indexes.forEach((index, i) => { if (index !== undefined) values[index] = Math.max(0, Math.min(1, frame.values[i])); });
-    const tongue = {};
+    const tongue = {}, rawTongue = {};
     tongueChannels.forEach((name, i) => {
+      rawTongue[name] = Math.max(0, Math.min(1, frame.tongueValues[i]));
       for (const target of tongueTargets[name] || [])
-        tongue[target] = Math.max(tongue[target] || 0, Math.max(0, Math.min(1, frame.tongueValues[i])));
+        tongue[target] = rawTongue[name];
     });
-    return {time: frameIndex / 60, values, tongue};
+    return {time: frameIndex / 60, values, tongue, rawTongue};
   });
   return frames;
 }
