@@ -10,6 +10,7 @@ import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {controlsFromFrame,CHANNELS,sampleFrames} from './timeline.mjs';
 import {SpeechPlayer} from './player.mjs';
 import {a2fFixturePacket,sampleA2fTongue} from './a2f-fixture.mjs';
+import {visibleA2fTongue} from './a2f-tongue-visual.mjs';
 import {retargetControls,visemeWeights} from './retarget.mjs';
 import {OralView,constrainTongueShader} from './oral-view.mjs';
 import {sampleArticulation} from './articulation.mjs';
@@ -64,7 +65,7 @@ try{const saved=localStorage.getItem('teacher-pace-v1');if(['gentle','extraSlow'
 audio.defaultPlaybackRate=audio.playbackRate=1;audio.preservesPitch=true;
 $('speed').onchange=()=>{player.setPlaybackRate(1);try{localStorage.setItem('teacher-pace-v1',$('speed').value);}catch{}$('status').textContent='下次朗读按新节奏生成；重播保留原音频。';};
 let replayPacket=null,a2fEntries=[],fixtureReady;
-const mappedSpeech=(row,time)=>player.source==='a2f3d'?{...controlsFromFrame(row),...sampleA2fTongue(player.frames,time)}:player.source==='authored-reference'?controlsFromFrame(row):assetVersion===6?speechFace(row,player.visemes,time,$('mouth-mode').value,Number($('mouth-gain').value)):retargetControls(row,player.visemes,time);
+const mappedSpeech=(row,time)=>player.source==='a2f3d'?{...controlsFromFrame(row),...visibleA2fTongue(sampleA2fTongue(player.frames,time),$('a2f-tongue-enhance').checked)}:player.source==='authored-reference'?controlsFromFrame(row):assetVersion===6?speechFace(row,player.visemes,time,$('mouth-mode').value,Number($('mouth-gain').value)):retargetControls(row,player.visemes,time);
 const player=new SpeechPlayer({audio,fetchSpeech:async(text,signal,options)=>{
  await fixtureReady;
  const entry=a2fEntries.find(item=>item.text===text);
@@ -215,7 +216,7 @@ function render(ms){
   if(oralView?.active&&player.syllables.length&&['playing','paused'].includes(player.state))$('oral-description').textContent=unit?`${unit.text}（${phoneticText}）：${articulation.description}`:'字间停顿，舌头回到过渡位置。';
   if(oralView?.active&&player.source==='a2f3d'&&['playing','paused'].includes(player.state)){
    const tongue=sampleA2fTongue(player.frames,audio.currentTime);
-   $('oral-description').textContent=`A2F 舌体上抬 ${Number(tongue.tongueMiddleRaise||0).toFixed(2)} · 内收 ${Number(tongue.tongueRetract||0).toFixed(2)} · 舌尖上抬 ${Number(tongue.tongueTipRaisePreview||0).toFixed(2)}。音频推断结果，非逐字教学舌位。`;
+   $('oral-description').textContent=`A2F 原始值：舌体上抬 ${Number(tongue.tongueMiddleRaise||0).toFixed(2)} · 内收 ${Number(tongue.tongueRetract||0).toFixed(2)} · 舌尖上抬 ${Number(tongue.tongueTipRaisePreview||0).toFixed(2)}。${$('a2f-tongue-enhance').checked?'画面已增强舌体动作；':'画面使用原始权重；'}非逐字教学舌位。`;
   }
   if(oralView?.active){
 

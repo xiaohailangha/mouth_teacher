@@ -53,8 +53,13 @@ const server=http.createServer(async(req,res)=>{
   const target=path.resolve(base,relative);
   if(!target.startsWith(base+path.sep)){json(res,403,{error:'Forbidden'});return;}
   const data=await readFile(target);
-  const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.glb':'model/gltf-binary','.png':'image/png'}[path.extname(target)] || 'application/octet-stream';
-  res.writeHead(200,{'Content-Type':mime,'Cache-Control':'no-cache'});res.end(data);
+  const extension=path.extname(target);
+  const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.glb':'model/gltf-binary','.png':'image/png','.wav':'audio/wav'}[extension] || 'application/octet-stream';
+  const range=extension==='.wav'?/^bytes=(\d+)-(\d*)$/.exec(req.headers.range||''):null;
+  if(range){const start=Number(range[1]),end=range[2]?Math.min(Number(range[2]),data.length-1):data.length-1;
+   if(start>=data.length||end<start){res.writeHead(416,{'Content-Range':`bytes */${data.length}`});res.end();return;}
+   res.writeHead(206,{'Content-Type':mime,'Content-Range':`bytes ${start}-${end}/${data.length}`,'Content-Length':end-start+1,'Accept-Ranges':'bytes','Cache-Control':'no-cache'});res.end(data.subarray(start,end+1));return;}
+  res.writeHead(200,{'Content-Type':mime,'Content-Length':data.length,'Accept-Ranges':extension==='.wav'?'bytes':'none','Cache-Control':'no-cache'});res.end(data);
  }catch(error){if(!res.destroyed)json(res,error.code==='ENOENT'?404:error.status||500,{error:error.code==='ENOENT'?'Not found':error.message});}
 });
 server.listen(port,host,()=>{
