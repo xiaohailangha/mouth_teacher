@@ -1,0 +1,35 @@
+{
+    "name": "小虎子 · 中文说话练习",
+    "short_name": "小虎子",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#f4f7ef",
+    "theme_color": "#477963",
+    "description": "小虎子儿童中文实时说话练习原型",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
