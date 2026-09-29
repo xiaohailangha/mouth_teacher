@@ -21,8 +21,11 @@ test('ten XFYun recordings have real Audio2Face frames aligned to their audio', 
     assert.equal(wav.readUInt32LE(24), 24000);
     const face = readJson(entry.face);
     const packet = a2fFixturePacket(entry, face);
+    assert.equal(face.schema, 2);
     assert.equal(face.channels.length, 52);
+    assert.equal(face.tongueChannels.length, 16);
     assert.ok(Math.abs(packet.frames.at(-1).time - entry.duration) < 0.05, entry.id);
     assert.ok(packet.frames.some(frame => frame.values[17] > 0.05), `${entry.id}: jaw never moved`);
+    assert.ok(packet.frames.some(frame => frame.tongue.tongueMiddleRaise > .1), `${entry.id}: tongue never moved`);
   }
 });

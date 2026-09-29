@@ -11,6 +11,12 @@ test('coordinated closure applies once before all dependent correctives',()=>{
  const v=faceRound29Weights({jawOpen:.7,mouthClose:.5});assert.equal(v.jawOpen,.35);
  const zero=faceRound29Weights({});assert.ok(Object.values(zero).every(v=>v===0));
 });
+test('A2F solved jaw is not nearly erased by its simultaneous mouthClose',()=>{
+ const v=faceRound29Weights({jawOpen:.8,mouthClose:.9},{a2f:true});
+ assert.ok(v.jawOpen>.5);
+ assert.ok(v.jawOpen<.8);
+ assert.ok(Math.abs(faceRound29Weights({jawOpen:.8,mouthClose:.9}).jawOpen-.08)<1e-8);
+});
 test('clear speech preserves b/p/m contact and silence despite jaw amplification',()=>{
  const row=Array(55).fill(0);row[17]=.6;row[18]=.5;
  for(const id of [0,21])assert.equal(speechFace(row,[{time:0,id}],.2).jawOpen,0);

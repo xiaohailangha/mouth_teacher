@@ -42,10 +42,7 @@ void Collect(void* context, const nva2f::IBlendshapeExecutor::HostResults& resul
                               {result.weights.Data(), result.weights.Data() + result.weights.Size()}});
 }
 
-std::vector<std::string> Names(const nva2f::IDiffusionModel::IBlendshapeSolveModelInfo& info) {
-  auto params = info.GetExecutorCreationParameters(nva2f::IGeometryExecutor::ExecutionOption::Skin, 0);
-  if (!params.initializationSkinParams) throw std::runtime_error("No skin blendshape solver");
-  const auto& data = params.initializationSkinParams->data;
+std::vector<std::string> Names(const nva2f::BlendshapeSolverDataView& data) {
   if (!data.poseNames || !data.poseNamesSize) throw std::runtime_error("No blendshape names");
   std::vector<std::string> names;
   for (std::size_t i = 0; i < data.poseNamesSize; ++i) {
@@ -65,15 +62,19 @@ void Export(const char* audioPath, const char* modelPath, const char* outputPath
   nva2f::IDiffusionModel::IGeometryModelInfo* rawModel = nullptr;
   nva2f::IDiffusionModel::IBlendshapeSolveModelInfo* rawSolve = nullptr;
   Owned<nva2f::IBlendshapeExecutorBundle> bundle(nva2f::ReadDiffusionBlendshapeSolveExecutorBundle(
-      1, modelPath, nva2f::IGeometryExecutor::ExecutionOption::Skin,
+      1, modelPath, nva2f::IGeometryExecutor::ExecutionOption::SkinTongue,
       false, 0, true, &rawModel, &rawSolve));
   Owned<nva2f::IDiffusionModel::IGeometryModelInfo> model(rawModel);
   Owned<nva2f::IDiffusionModel::IBlendshapeSolveModelInfo> solve(rawSolve);
-  if (!bundle || !model || !solve) throw std::runtime_error("Unable to open Audio2Face v3 model or skin solver");
-  auto names = Names(*solve);
+  if (!bundle || !model || !solve) throw std::runtime_error("Unable to open Audio2Face v3 model or blendshape solver");
+  const auto params = solve->GetExecutorCreationParameters(nva2f::IGeometryExecutor::ExecutionOption::SkinTongue, 0);
+  if (!params.initializationSkinParams || !params.initializationTongueParams)
+    throw std::runtime_error("Model must contain both skin and tongue blendshape solvers");
+  auto names = Names(params.initializationSkinParams->data);
+  auto tongueNames = Names(params.initializationTongueParams->data);
   auto& executor = bundle->GetExecutor();
   if (executor.GetResultType() != nva2f::IBlendshapeExecutor::ResultsType::HOST ||
-      executor.GetWeightCount() != names.size())
+      executor.GetWeightCount() != names.size() + tongueNames.size())
     throw std::runtime_error("Unexpected blendshape result layout");
 
   Collector collector;
@@ -101,23 +102,32 @@ void Export(const char* audioPath, const char* modelPath, const char* outputPath
 
   std::ofstream out(outputPath, std::ios::binary);
   if (!out) throw std::runtime_error("Unable to create output JSON");
-  out << "{\"schema\":1,\"source\":\"nvidia-audio2face-3d-v3.0\",\"fps\":60,\"channels\":[";
+  out << "{\"schema\":2,\"source\":\"nvidia-audio2face-3d-v3.0\",\"fps\":60,\"channels\":[";
   for (std::size_t i = 0; i < names.size(); ++i) out << (i ? ",\"" : "\"") << names[i] << '"';
+  out << "],\"tongueChannels\":[";
+  for (std::size_t i = 0; i < tongueNames.size(); ++i) out << (i ? ",\"" : "\"") << tongueNames[i] << '"';
   out << "],\"frames\":[";
   for (std::size_t i = 0; i < collector.frames.size(); ++i) {
     const auto& frame = collector.frames[i];
-    if (frame.weights.size() != names.size()) throw std::runtime_error("Frame weight count changed");
+    if (frame.weights.size() != names.size() + tongueNames.size()) throw std::runtime_error("Frame weight count changed");
     out << (i ? ",{" : "{") << "\"time\":" << (static_cast<double>(i) / 60.0) << ",\"values\":[";
-    for (std::size_t j = 0; j < frame.weights.size(); ++j) {
+    for (std::size_t j = 0; j < names.size(); ++j) {
       const float value = frame.weights[j];
       if (!std::isfinite(value)) throw std::runtime_error("Non-finite blendshape weight");
+      out << (j ? "," : "") << value;
+    }
+    out << "],\"tongueValues\":[";
+    for (std::size_t j = 0; j < tongueNames.size(); ++j) {
+      const float value = frame.weights[names.size() + j];
+      if (!std::isfinite(value)) throw std::runtime_error("Non-finite tongue weight");
       out << (j ? "," : "") << value;
     }
     out << "]}";
   }
   out << "]}\n";
   if (!out) throw std::runtime_error("Unable to write output JSON");
-  std::cerr << "Exported " << collector.frames.size() << " frames, " << names.size() << " channels\n";
+  std::cerr << "Exported " << collector.frames.size() << " frames, " << names.size()
+            << " face and " << tongueNames.size() << " tongue channels\n";
 }
 }  // namespace
 

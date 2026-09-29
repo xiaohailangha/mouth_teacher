@@ -9,7 +9,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {controlsFromFrame,CHANNELS,sampleFrames} from './timeline.mjs';
 import {SpeechPlayer} from './player.mjs';
-import {a2fFixturePacket} from './a2f-fixture.mjs';
+import {a2fFixturePacket,sampleA2fTongue} from './a2f-fixture.mjs';
 import {retargetControls,visemeWeights} from './retarget.mjs';
 import {OralView,constrainTongueShader} from './oral-view.mjs';
 import {sampleArticulation} from './articulation.mjs';
@@ -64,7 +64,7 @@ try{const saved=localStorage.getItem('teacher-pace-v1');if(['gentle','extraSlow'
 audio.defaultPlaybackRate=audio.playbackRate=1;audio.preservesPitch=true;
 $('speed').onchange=()=>{player.setPlaybackRate(1);try{localStorage.setItem('teacher-pace-v1',$('speed').value);}catch{}$('status').textContent='下次朗读按新节奏生成；重播保留原音频。';};
  let replayPacket=null;
-const mappedSpeech=(row,time)=>['authored-reference','a2f3d'].includes(player.source)?controlsFromFrame(row):assetVersion===6?speechFace(row,player.visemes,time,$('mouth-mode').value,Number($('mouth-gain').value)):retargetControls(row,player.visemes,time);
+const mappedSpeech=(row,time)=>player.source==='a2f3d'?{...controlsFromFrame(row),...sampleA2fTongue(player.frames,time)}:player.source==='authored-reference'?controlsFromFrame(row):assetVersion===6?speechFace(row,player.visemes,time,$('mouth-mode').value,Number($('mouth-gain').value)):retargetControls(row,player.visemes,time);
 const player=new SpeechPlayer({audio,fetchSpeech:async(text,signal,options)=>{
  const response=await fetch('/api/speech',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,articulation:options?.articulation===true,voiceProfile:$('voice-profile').value,readings:options?.readings,pace:$('speed').value}),signal});
  const data=await response.json();if(data.pairingRequired)requirePairing();if(!response.ok)throw Error(data.error || '合成失败');
@@ -74,7 +74,7 @@ const player=new SpeechPlayer({audio,fetchSpeech:async(text,signal,options)=>{
 },onState:(state,message)=>{
  const reference=['authored-reference','a2f3d'].includes(player.source)&&['playing','paused','ready'].includes(state);
  $('mouth-mode').disabled=reference;$('mouth-gain').disabled=reference||$('mouth-mode').value!=='clear';
-  if(ready&&assetVersion===6&&['playing','paused'].includes(state))$('model-status').textContent=`小虎子 · R31 · ${player.source==='a2f3d'?'Audio2Face 面部帧':player.source==='authored-reference'?'单句校准参考':player.source==='azure'?'Azure 口型':'同步测试'}`;
+  if(ready&&assetVersion===6&&['playing','paused'].includes(state))$('model-status').textContent=`小虎子 · R31 · ${player.source==='a2f3d'?'Audio2Face 面部与舌头帧':player.source==='authored-reference'?'单句校准参考':player.source==='azure'?'Azure 口型':'同步测试'}`;
  if(state==='paused')oralPaused={...lastControls};else oralPaused=null;
  if(oralView?.active)$('oral-hold').textContent=state==='paused'?'继续配音':'定格观察';
  $('status').textContent=message; $('speak').disabled=!ready;
@@ -176,7 +176,7 @@ for(const [name,label] of [['jawOpen','张口'],...(assetVersion===6?[['mouthClo
 }
 const p=new THREE.Vector3(),q=new THREE.Quaternion(),s=new THREE.Vector3(),baseQ=new THREE.Quaternion(),deltaQ=new THREE.Quaternion(),retainQ=new THREE.Quaternion();
 function applyControls(values,time){
- if(assetVersion>=5)values=assetVersion===6?faceRound29Weights(values):faceV5Weights(values);
+ if(assetVersion>=5)values=assetVersion===6?faceRound29Weights(values,{a2f:player.source==='a2f3d'}):faceV5Weights(values);
  lastControls=values;
  for(const [name,base] of Object.entries(manifest.neutral)){
   const b=bones[name];if(!b)continue;b.position.fromArray(base.p);b.quaternion.fromArray(base.q);b.scale.fromArray(base.s);

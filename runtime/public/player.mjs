@@ -31,7 +31,7 @@ export class SpeechPlayer {
   if(!['ready','paused'].includes(this.state))return;
   this.setPlaybackRate(this.playbackRate);
   const attempt=++this.playAttempt;
-  try{await this.audio.play();if(id!==this.generation||attempt!==this.playAttempt)return;this.setState('playing',this.source==='authored-reference'?'单句校准参考 · 爸爸抱宝宝，妈妈买面包':this.source==='a2f3d'?'讯飞声音 + Audio2Face 面部动画':this.source==='xfyun'?'讯飞超拟人 · 小虎子正在说话…':this.source==='azure'?'小虎子正在说话…':'同步测试音播放中（不是中文语音）');}
+  try{await this.audio.play();if(id!==this.generation||attempt!==this.playAttempt)return;this.setState('playing',this.source==='authored-reference'?'单句校准参考 · 爸爸抱宝宝，妈妈买面包':this.source==='a2f3d'?'讯飞声音 + Audio2Face 面部与舌头动画':this.source==='xfyun'?'讯飞超拟人 · 小虎子正在说话…':this.source==='azure'?'小虎子正在说话…':'同步测试音播放中（不是中文语音）');}
   catch{if(id===this.generation&&attempt===this.playAttempt)this.setState('ready','浏览器需要手动播放，请点击“继续”。');}
  }
  pause(){if(this.state==='playing'){this.audio.pause();this.setState('paused','已暂停，点击继续可接着说。');}}

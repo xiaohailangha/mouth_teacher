@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CHANNELS} from '../public/timeline.mjs';
-import {a2fFixturePacket} from '../public/a2f-fixture.mjs';
+import {a2fFixturePacket,sampleA2fTongue} from '../public/a2f-fixture.mjs';
 import {SpeechPlayer} from '../public/player.mjs';
 
 const entry = {id: '01', text: '爸爸抱宝宝。', voice: 'x6_shiwangxiaoxin_pro', audio: '01.wav'};
@@ -23,6 +23,23 @@ test('Audio2Face named channels map to tiger frames and clamp solver overshoot',
 test('Audio2Face fixture rejects incomplete channels and wrong timestamps', () => {
   assert.throws(() => a2fFixturePacket(entry, {...face, channels: channels.slice(0, 19)}));
   assert.throws(() => a2fFixturePacket(entry, {...face, frames: [{time: .2, values: face.frames[0].values}]}));
+});
+
+test('Audio2Face tongue solve drives independent tiger controls on the audio clock', () => {
+  const tongueChannels = ['tongueTipUp','tongueTipDown','tongueTipLeft','tongueTipRight','tongueRollUp',
+    'tongueRollDown','tongueRollLeft','tongueRollRight','tongueUp','tongueDown','tongueLeft',
+    'tongueRight','tongueIn','tongueStretch','tongueWide','tongueNarrow'];
+  const v = (tip, rear) => tongueChannels.map(name => name === 'tongueTipUp' ? tip : name === 'tongueStretch' ? rear : 0);
+  const full = {...face, schema: 2, tongueChannels, frames: [
+    {...face.frames[0], tongueValues: v(0, 0)},
+    {...face.frames[1], tongueValues: v(.8, .6)},
+  ]};
+  const packet = a2fFixturePacket(entry, full);
+  const half = sampleA2fTongue(packet.frames, 1 / 120);
+  assert.ok(Math.abs(half.tongueTipRaisePreview - .4) < 1e-8);
+  assert.ok(Math.abs(half.tongueExtend - .3) < 1e-8);
+  assert.deepEqual(sampleA2fTongue(packet.frames, -1), {});
+  assert.throws(() => a2fFixturePacket(entry, {...full, frames: [{...full.frames[0], tongueValues: [1]}]}));
 });
 
 test('static WAV URL is retained for playback without revoking a non-blob URL', async () => {
