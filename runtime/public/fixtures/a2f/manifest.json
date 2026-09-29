@@ -12,7 +12,7 @@
       "audio": "01.wav",
       "audioSource": "xfyun",
       "faceSource": "nvidia-audio2face-3d-v3.0",
-      "face": "01-face.json"
+      "face": "01-full.json"
     },
     {
       "id": "02",
@@ -23,7 +23,7 @@
       "audio": "02.wav",
       "audioSource": "xfyun",
       "faceSource": "nvidia-audio2face-3d-v3.0",
-      "face": "02-face.json"
+      "face": "02-full.json"
     },
     {
       "id": "03",
@@ -34,7 +34,7 @@
       "audio": "03.wav",
       "audioSource": "xfyun",
       "faceSource": "nvidia-audio2face-3d-v3.0",
-      "face": "03-face.json"
+      "face": "03-full.json"
     },
     {
       "id": "04",
@@ -45,7 +45,7 @@
       "audio": "04.wav",
       "audioSource": "xfyun",
       "faceSource": "nvidia-audio2face-3d-v3.0",
-      "face": "04-face.json"
+      "face": "04-full.json"
     },
     {
       "id": "05",
@@ -56,7 +56,7 @@
       "audio": "05.wav",
       "audioSource": "xfyun",
       "faceSource": "nvidia-audio2face-3d-v3.0",
-      "face": "05-face.json"
+      "face": "05-full.json"
     },
     {
       "id": "06",
@@ -67,7 +67,7 @@
       "audio": "06.wav",
       "audioSource": "xfyun",
       "faceSource": "nvidia-audio2face-3d-v3.0",
-      "face": "06-face.json"
+      "face": "06-full.json"
     },
     {
       "id": "07",
@@ -78,7 +78,7 @@
       "audio": "07.wav",
       "audioSource": "xfyun",
       "faceSource": "nvidia-audio2face-3d-v3.0",
-      "face": "07-face.json"
+      "face": "07-full.json"
     },
     {
       "id": "08",
@@ -89,7 +89,7 @@
       "audio": "08.wav",
       "audioSource": "xfyun",
       "faceSource": "nvidia-audio2face-3d-v3.0",
-      "face": "08-face.json"
+      "face": "08-full.json"
     },
     {
       "id": "09",
@@ -100,7 +100,7 @@
       "audio": "09.wav",
       "audioSource": "xfyun",
       "faceSource": "nvidia-audio2face-3d-v3.0",
-      "face": "09-face.json"
+      "face": "09-full.json"
     },
     {
       "id": "10",
@@ -111,7 +111,7 @@
       "audio": "10.wav",
       "audioSource": "xfyun",
       "faceSource": "nvidia-audio2face-3d-v3.0",
-      "face": "10-face.json"
+      "face": "10-full.json"
     }
   ]
 }

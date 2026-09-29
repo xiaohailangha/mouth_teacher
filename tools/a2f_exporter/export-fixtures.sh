@@ -14,7 +14,7 @@ export CUDA_PATH=${CUDA_PATH:-/usr/local/cuda-12.9}
 export TENSORRT_ROOT_DIR=${TENSORRT_ROOT_DIR:-/usr}
 for id in {01..10}; do
   input="$fixtures/$id.wav"
-  output="$fixtures/$id-face.json"
+  output="$fixtures/$id-full.json"
   test -f "$input"
   if [ -s "$output" ] && grep -q '"tongueChannels"' "$output"; then echo "$id: existing face and tongue output; skipped"; continue; fi
   if command -v ffmpeg >/dev/null; then

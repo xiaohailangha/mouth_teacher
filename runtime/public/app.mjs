@@ -85,7 +85,7 @@ const player=new SpeechPlayer({audio,fetchSpeech:async(text,signal,options)=>{
 async function setupA2fFixtures(){
  try {
   const response=await fetch('/fixtures/a2f/manifest.json');if(!response.ok)return;
-  const manifest=await response.json();const entries=manifest.entries?.filter(entry=>entry.faceSource==='nvidia-audio2face-3d-v3.0'&&/^\d{2}-face\.json$/.test(entry.face));
+  const manifest=await response.json();const entries=manifest.entries?.filter(entry=>entry.faceSource==='nvidia-audio2face-3d-v3.0'&&/^\d{2}-(?:face|full)\.json$/.test(entry.face));
   if(!entries?.length)return;
   const select=$('a2f-fixture-select');
   for(const entry of entries){const option=document.createElement('option');option.value=entry.id;option.textContent=`${entry.id} · ${entry.text}`;select.append(option);}
