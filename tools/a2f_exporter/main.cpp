@@ -80,11 +80,13 @@ void Export(const char* audioPath, const char* modelPath, const char* outputPath
   Check(executor.SetResultsCallback(Collect, &collector), "SetResultsCallback");
   auto& emotions = bundle->GetEmotionAccumulator(0);
   std::vector<float> neutral(emotions.GetEmotionSize(), 0.0f);
-  Check(emotions.Accumulate(0, {neutral.data(), neutral.size()}, bundle->GetCudaStream().Data()), "Accumulate emotion");
+  Check(emotions.Accumulate(0, nva2x::HostTensorFloatConstView{neutral.data(), neutral.size()},
+                            bundle->GetCudaStream().Data()), "Accumulate emotion");
   Check(emotions.Close(), "Close emotion");
   auto& accumulator = bundle->GetAudioAccumulator(0);
   const auto& samples = audio.samples[0];
-  Check(accumulator.Accumulate({samples.data(), samples.size()}, bundle->GetCudaStream().Data()), "Accumulate audio");
+  Check(accumulator.Accumulate(nva2x::HostTensorFloatConstView{samples.data(), samples.size()},
+                               bundle->GetCudaStream().Data()), "Accumulate audio");
   Check(accumulator.Close(), "Close audio");
   std::size_t calls = 0;
   while (nva2x::GetNbReadyTracks(executor) > 0) {

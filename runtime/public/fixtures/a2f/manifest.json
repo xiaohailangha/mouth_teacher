@@ -11,7 +11,8 @@
       "duration": 3.549,
       "audio": "01.wav",
       "audioSource": "xfyun",
-      "faceSource": null
+      "faceSource": "nvidia-audio2face-3d-v3.0",
+      "face": "01-face.json"
     },
     {
       "id": "02",
@@ -21,7 +22,8 @@
       "duration": 3.497,
       "audio": "02.wav",
       "audioSource": "xfyun",
-      "faceSource": null
+      "faceSource": "nvidia-audio2face-3d-v3.0",
+      "face": "02-face.json"
     },
     {
       "id": "03",
@@ -31,7 +33,8 @@
       "duration": 3.003,
       "audio": "03.wav",
       "audioSource": "xfyun",
-      "faceSource": null
+      "faceSource": "nvidia-audio2face-3d-v3.0",
+      "face": "03-face.json"
     },
     {
       "id": "04",
@@ -41,7 +44,8 @@
       "duration": 2.769,
       "audio": "04.wav",
       "audioSource": "xfyun",
-      "faceSource": null
+      "faceSource": "nvidia-audio2face-3d-v3.0",
+      "face": "04-face.json"
     },
     {
       "id": "05",
@@ -51,7 +55,8 @@
       "duration": 2.717,
       "audio": "05.wav",
       "audioSource": "xfyun",
-      "faceSource": null
+      "faceSource": "nvidia-audio2face-3d-v3.0",
+      "face": "05-face.json"
     },
     {
       "id": "06",
@@ -61,7 +66,8 @@
       "duration": 2.951,
       "audio": "06.wav",
       "audioSource": "xfyun",
-      "faceSource": null
+      "faceSource": "nvidia-audio2face-3d-v3.0",
+      "face": "06-face.json"
     },
     {
       "id": "07",
@@ -71,7 +77,8 @@
       "duration": 3.055,
       "audio": "07.wav",
       "audioSource": "xfyun",
-      "faceSource": null
+      "faceSource": "nvidia-audio2face-3d-v3.0",
+      "face": "07-face.json"
     },
     {
       "id": "08",
@@ -81,7 +88,8 @@
       "duration": 3.913,
       "audio": "08.wav",
       "audioSource": "xfyun",
-      "faceSource": null
+      "faceSource": "nvidia-audio2face-3d-v3.0",
+      "face": "08-face.json"
     },
     {
       "id": "09",
@@ -91,7 +99,8 @@
       "duration": 3.835,
       "audio": "09.wav",
       "audioSource": "xfyun",
-      "faceSource": null
+      "faceSource": "nvidia-audio2face-3d-v3.0",
+      "face": "09-face.json"
     },
     {
       "id": "10",
@@ -101,7 +110,8 @@
       "duration": 3.913,
       "audio": "10.wav",
       "audioSource": "xfyun",
-      "faceSource": null
+      "faceSource": "nvidia-audio2face-3d-v3.0",
+      "face": "10-face.json"
     }
   ]
 }

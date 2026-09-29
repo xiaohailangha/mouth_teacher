@@ -6,7 +6,6 @@ project=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 model="$sdk/_data/generated/audio2face-sdk/samples/data/multi-diffusion/model.json"
 binary="$sdk/_build/release/audio2face-sdk/bin/mouth-teacher-a2f-exporter"
 fixtures="$project/runtime/public/fixtures/a2f"
-command -v ffmpeg >/dev/null || { echo 'ffmpeg is required for 24 kHz to 16 kHz conversion' >&2; exit 1; }
 test -f "$model"
 test -x "$binary"
 tmp=$(mktemp -d)
@@ -18,6 +17,10 @@ for id in {01..10}; do
   output="$fixtures/$id-face.json"
   test -f "$input"
   if [ -s "$output" ]; then echo "$id: existing face output; skipped"; continue; fi
-  ffmpeg -hide_banner -loglevel error -y -i "$input" -ac 1 -ar 16000 -c:a pcm_s16le "$tmp/$id.wav"
+  if command -v ffmpeg >/dev/null; then
+    ffmpeg -hide_banner -loglevel error -y -i "$input" -ac 1 -ar 16000 -c:a pcm_s16le "$tmp/$id.wav"
+  else
+    python3 "$project/tools/a2f_exporter/resample_16k.py" "$input" "$tmp/$id.wav"
+  fi
   "$sdk/run_sample.sh" "$binary" "$tmp/$id.wav" "$model" "$output"
 done
