@@ -9,6 +9,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {controlsFromFrame,CHANNELS,sampleFrames} from './timeline.mjs';
 import {SpeechPlayer} from './player.mjs';
+import {a2fFixturePacket} from './a2f-fixture.mjs';
 import {retargetControls,visemeWeights} from './retarget.mjs';
 import {OralView,constrainTongueShader} from './oral-view.mjs';
 import {sampleArticulation} from './articulation.mjs';
@@ -63,7 +64,7 @@ try{const saved=localStorage.getItem('teacher-pace-v1');if(['gentle','extraSlow'
 audio.defaultPlaybackRate=audio.playbackRate=1;audio.preservesPitch=true;
 $('speed').onchange=()=>{player.setPlaybackRate(1);try{localStorage.setItem('teacher-pace-v1',$('speed').value);}catch{}$('status').textContent='下次朗读按新节奏生成；重播保留原音频。';};
  let replayPacket=null;
-const mappedSpeech=(row,time)=>player.source==='authored-reference'?controlsFromFrame(row):assetVersion===6?speechFace(row,player.visemes,time,$('mouth-mode').value,Number($('mouth-gain').value)):retargetControls(row,player.visemes,time);
+const mappedSpeech=(row,time)=>['authored-reference','a2f3d'].includes(player.source)?controlsFromFrame(row):assetVersion===6?speechFace(row,player.visemes,time,$('mouth-mode').value,Number($('mouth-gain').value)):retargetControls(row,player.visemes,time);
 const player=new SpeechPlayer({audio,fetchSpeech:async(text,signal,options)=>{
  const response=await fetch('/api/speech',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,articulation:options?.articulation===true,voiceProfile:$('voice-profile').value,readings:options?.readings,pace:$('speed').value}),signal});
  const data=await response.json();if(data.pairingRequired)requirePairing();if(!response.ok)throw Error(data.error || '合成失败');
@@ -71,9 +72,9 @@ const player=new SpeechPlayer({audio,fetchSpeech:async(text,signal,options)=>{
  if(signal.aborted)throw Error('已停止');
   replayPacket=data;$('replay').disabled=false;return data;
 },onState:(state,message)=>{
- const reference=player.source==='authored-reference'&&['playing','paused','ready'].includes(state);
+ const reference=['authored-reference','a2f3d'].includes(player.source)&&['playing','paused','ready'].includes(state);
  $('mouth-mode').disabled=reference;$('mouth-gain').disabled=reference||$('mouth-mode').value!=='clear';
-  if(ready&&assetVersion===6&&['playing','paused'].includes(state))$('model-status').textContent=`小虎子 · R31 · ${player.source==='authored-reference'?'单句校准参考':player.source==='azure'?'Azure 口型':'同步测试'}`;
+  if(ready&&assetVersion===6&&['playing','paused'].includes(state))$('model-status').textContent=`小虎子 · R31 · ${player.source==='a2f3d'?'Audio2Face 面部帧':player.source==='authored-reference'?'单句校准参考':player.source==='azure'?'Azure 口型':'同步测试'}`;
  if(state==='paused')oralPaused={...lastControls};else oralPaused=null;
  if(oralView?.active)$('oral-hold').textContent=state==='paused'?'继续配音':'定格观察';
  $('status').textContent=message; $('speak').disabled=!ready;
@@ -81,6 +82,27 @@ const player=new SpeechPlayer({audio,fetchSpeech:async(text,signal,options)=>{
  $('stop').disabled=state==='idle';$('pause').disabled=state!=='playing';$('resume').disabled=!['paused','ready'].includes(state);
  if(state==='idle'){$('progress').value=0;if(oralView?.active)$('oral-description').textContent=demos[tongueDemo].description;}
 }});
+async function setupA2fFixtures(){
+ try {
+  const response=await fetch('/fixtures/a2f/manifest.json');if(!response.ok)return;
+  const manifest=await response.json();const entries=manifest.entries?.filter(entry=>entry.faceSource==='nvidia-audio2face-3d-v3.0'&&/^\d{2}-face\.json$/.test(entry.face));
+  if(!entries?.length)return;
+  const select=$('a2f-fixture-select');
+  for(const entry of entries){const option=document.createElement('option');option.value=entry.id;option.textContent=`${entry.id} · ${entry.text}`;select.append(option);}
+  $('a2f-fixtures').hidden=false;
+  $('a2f-fixture-play').onclick=async()=>{
+   const entry=entries.find(item=>item.id===select.value);if(!entry)return;
+   resetManual();player.stop('');const generation=player.generation;player.abort=new AbortController();player.setState('synthesizing','正在读取离线面部帧…');
+   try {
+    const result=await fetch(`/fixtures/a2f/${entry.face}`,{signal:player.abort.signal});if(!result.ok)throw Error('面部数据读取失败');
+    const packet=a2fFixturePacket(entry,await result.json());if(generation!==player.generation)return;
+    $('text').value=entry.text;replayPacket=packet;$('replay').disabled=false;
+    mouthView=true;frameCamera();mouthButton();await player.load(packet,generation);
+   }catch(error){if(generation===player.generation)player.stop(error.message||'离线样例读取失败');}
+  };
+ }catch(error){console.warn('Audio2Face fixture manifest unavailable:',error.message);}
+}
+setupA2fFixtures();
 function resetManual(){manual={};lessonSpeech=false;demoEnabled=false;document.querySelectorAll('#sliders input').forEach(e=>e.value=0);}
 function setOral(active){
  if(!oralView)return;oralView.setActive(active);oralView.setSection(oralSide);$('oral-side').textContent=oralSide?'正面观察':'侧面剖视';demoEnabled=active&&player.state==='idle';holdDemo=false;demoStarted=performance.now()/1000;
