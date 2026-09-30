@@ -11,7 +11,7 @@ import {controlsFromFrame,CHANNELS,sampleFrames} from './timeline.mjs';
 import {SpeechPlayer} from './player.mjs';
 import {a2fFixturePacket,sampleA2fTongue} from './a2f-fixture.mjs';
 import {visibleA2fTongue} from './a2f-tongue-visual.mjs';
-import {addA2fR31TongueShapes} from './a2f-r31-tongue.mjs';
+import {addA2fR31TongueShapes, addedA2fTongueShapes} from './a2f-r31-tongue.mjs';
 import {retargetControls,visemeWeights} from './retarget.mjs';
 import {OralView,constrainTongueShader} from './oral-view.mjs';
 import {sampleArticulation} from './articulation.mjs';
@@ -168,7 +168,8 @@ $('mouth-gain').oninput=()=>{$('mouth-gain-value').textContent=Number($('mouth-g
 $('mouth-mode').onchange=()=>{$('mouth-gain').disabled=$('mouth-mode').value!=='clear';};
 $('reset').onclick=()=>{resetManual();player.stop();};
 document.querySelectorAll('[data-text]').forEach(el=>el.onclick=()=>{$('text').value=el.dataset.text;});
-for(const [name,label] of [['jawOpen','张口'],...(assetVersion===6?[['mouthClose','联动闭口']]:[]),['mouthPucker','圆唇（形态键）'],['mouthSmileLeft','左嘴角'],['eyeBlinkLeft','左眼闭合'],['eyeBlinkRight','右眼闭合'],['tongueTipUp','舌尖抬起'],...(assetVersion>=5?[['tongueExtend','伸舌'],['tongueRetract','收舌'],['tongueLeft','舌头向左'],['tongueRight','舌头向右'],['tongueMiddleRaise','舌中抬起'],['tongueRootRaise','舌根段抬起'],['tongueTipCurl','舌尖弯曲']]:[])]){
+const experimentalTongueLabels=['舌尖向左','舌尖向右','舌尖下卷','舌尖向左倾斜','舌尖向右倾斜','舌体下压','舌体展宽','舌体收窄'];
+for(const [name,label] of [['jawOpen','张口'],...(assetVersion===6?[['mouthClose','联动闭口']]:[]),['mouthPucker','圆唇（形态键）'],['mouthSmileLeft','左嘴角'],['eyeBlinkLeft','左眼闭合'],['eyeBlinkRight','右眼闭合'],['tongueTipUp','舌尖抬起'],...(assetVersion>=5?[['tongueExtend','伸舌'],['tongueRetract','收舌'],['tongueLeft','舌头向左'],['tongueRight','舌头向右'],['tongueMiddleRaise','舌中抬起'],['tongueRootRaise','舌根段抬起'],['tongueTipCurl','舌尖弯曲']]:[]),...(assetVersion===6?addedA2fTongueShapes.map((name,i)=>[name,experimentalTongueLabels[i]+'（实验形变）']):[])]){
  const labelEl=document.createElement('label');labelEl.textContent=label;const slider=document.createElement('input');slider.type='range';slider.min=0;slider.max=1;slider.step=.01;slider.value=0;slider.dataset.channel=name;
    slider.oninput=()=>{demoEnabled=false;lessonSpeech=false;holdDemo=false;if(player.state!=='idle')player.stop('基础变形检查');manual[name]=Number(slider.value);};labelEl.append(slider);$('sliders').append(labelEl);
 }
